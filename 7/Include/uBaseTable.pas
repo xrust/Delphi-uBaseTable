@@ -179,7 +179,7 @@ begin
 end;
 //-----------------------------------------------------------------------------+
 function    TCBaseTable.LoadFromFile(FileName:string;Delimiter:AnsiChar):Integer;
-var list:TStringList;i:Integer;str:string;
+var list:TStringList;i:Integer;
 begin
     Result:=0;
     if( not FileExists(FileName) )then Exit;
@@ -198,7 +198,7 @@ begin
 end;
 //-----------------------------------------------------------------------------+
 procedure   TCBaseTable.SaveToFile(FileName:string; ShowHeaders:Boolean=False);
-var list:TStringList;i,c:Integer; str:string;
+var list:TStringList;i,c:Integer;
 begin
     if( ShowHeaders )then c:=0 else c:=1;
     list:=TStringList.Create;
@@ -388,9 +388,7 @@ end;
 //-----------------------------------------------------------------------------+
 procedure   TCBaseTable.DrawCell(ACol, ARow: Integer; Rect: TRect);
 var
-i,HM,VM:Integer;
-arrow:TGraphic;
-ptarr:array [0..3] of TPoint;
+HM,VM:Integer;
 begin
     HM:=5; VM:=Trunc( (FTable.DefaultRowHeight-Abs(FTable.Font.Height)) / 2 );                      
     with FTable.Canvas do begin
@@ -485,7 +483,6 @@ var
 i,ii,sz:Integer;
 data:TData;
 dataArr:TAData;
-dtmFormat:TFormatSettings;
 //----
 begin
     ShortDateFormat:=FDateFormat;

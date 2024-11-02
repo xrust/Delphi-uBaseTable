@@ -10,7 +10,7 @@ uses Windows, Messages, SysUtils, Variants, Classes, Graphics, Controls, Forms,
 type PStringGrid = ^TStringGrid;
 //-----------------------------------------------------------------------------+
 type TTabAllign = (taLeft,taRight,taCenter);
-type TTabColTypes = (tcLabel,tcStr,tcInt,tcUint,tcDbl,tcIpAddr,tcDate,tcTime,tcDateTime);
+type TTabColTypes = (tcLabel,tcObject,tcStr,tcInt,tcUint,tcDbl,tcIpAddr,tcDate,tcTime,tcDateTime);
 //-----------------------------------------------------------------------------+
 type TRHeader = record
     width   : Word;
@@ -39,6 +39,7 @@ type TCBaseTable = class
         FDblClick   : TTableMouseEvent;
         //---
         procedure   SetSortable(sort:Boolean);
+        function    IsCollumnSortable(AColl:Integer):Boolean;
         procedure   SetScroll(ScrollStyle:TScrollStyle);
         procedure   SetSelectable(SetSelectable:Boolean);
         //---
@@ -102,6 +103,7 @@ end;
 implementation
 //-----------------------------------------------------------------------------+
 constructor TCBaseTable.Create(Grid:PStringGrid; ColCount:Word; RowCount:Word; RowHeight:Word);
+var i:Integer;
 begin
     FRowHeigth:=RowHeight;
     FColCount:=ColCount;
@@ -129,8 +131,17 @@ begin
     //---
     FHdCount:=0;
     SetLength(FAHeaders,ColCount);
+    for i:=0 to Length(FAHeaders)-1 do begin
+        FAHeaders[i].width:=0;
+        FAHeaders[i].calcWidth:=0;
+        FAHeaders[i].newWidth:=0;
+        FAHeaders[i].ctype:=tcLabel;
+        FAHeaders[i].align:=taLeft;
+        FAHeaders[i].name:='';
+    end;
     //---
     SetLength(FASelRows,FRowCount);
+    for i:=0 to Length(FASelRows)-1 do FASelRows[i]:=False;
     //---
     FTable:=Grid;
     FTable.Options:=[goFixedVertLine, goFixedHorzLine, goVertLine, goHorzLine, goRowSelect, goColSizing];
@@ -205,6 +216,16 @@ begin
     for i:=c to FTable.RowCount-1 do list.Add(FTable.Rows[i].CommaText);
     list.SaveToFile(FileName);
     list.Free;
+end;
+//-----------------------------------------------------------------------------+
+function    TCBaseTable.IsCollumnSortable(AColl:Integer):Boolean;
+begin
+    Result:=False;
+    if( AColl < 0 )then Exit;
+    if( AColl >= Length(FAHeaders) )then Exit; 
+    if( FAHeaders[AColl].ctype = tcLabel )then Exit;
+    if( FAHeaders[AColl].ctype = tcObject )then Exit;
+    Result:=True;
 end;
 //-----------------------------------------------------------------------------+
 procedure   TCBaseTable.AddColHeader(Name:ShortString;ColType:TTabColTypes;Align:TTabAllign;Width:Word);
@@ -343,7 +364,7 @@ begin
     //---
     if( FARow = 0 )then begin
         if( Button = mbLeft )then begin
-            if( FCanSort )then begin
+            if( FCanSort )and( IsCollumnSortable(FACol) )then begin
                 if( FSortPos <> FACol )then begin
                     FSortDir:=1;
                 end else begin
@@ -472,6 +493,7 @@ begin
 end;
 //-----------------------------------------------------------------------------+
 procedure TCBaseTable.Sort(xPos,sort:Integer);
+//----------------------------------------------------+
 type TData = record
     intVal:Int64;
     dblVal:Double;
@@ -479,8 +501,147 @@ type TData = record
     strRow:string;
 end; TAData = array of TData;
 //----------------------------------------------------+
+procedure FastSort(var data:TAData;dType,sortDir:Integer);
+var i,j:Integer;
+imax,imin,imid:Integer;
+arr:TAData;
+begin
+    if( dType < 0 )then Exit;
+    if( dType > 2 )then Exit;
+    if( sortDir=0 )then Exit;
+    //---
+    SetLength(arr,Length(data)*2);
+    //--- инициализировали минимум и максимум
+    imin :=Length(data);
+    imax :=Length(data);
+    arr[imin]:=data[0];
+    //---
+    if( dType = 0 )then begin
+        for i:=1 to Length(data)-1 do begin                                                         Application.ProcessMessages;
+            if( data[i].intVal < arr[imin].intVal )then begin//если следующий элемент меньше минимума, ставим его ниже и перезаписваем минимум
+                Dec(imin);                        // изменили ссылку на минимум
+                arr[imin]:=data[i];               // занесли данные
+            end else begin
+                if( data[i].intVal >= arr[imax].intVal )then begin//если следующий элемент больше максимума
+                    inc(imax);                         // изменили ссылку на максимум
+                    arr[imax]:=data[i];                // занесли данные
+                end else begin
+                    imid:=Trunc((imin+imax)/2);        //определили среднее
+                    if( data[i].intVal < arr[imid].intVal )then begin // если текущее значение меньше среднего, то ищем в сторону начала
+                        for j:=imin to imid do begin
+                            if( data[i].intVal >= arr[j].intVal )then begin
+                                arr[j-1]:=arr[j];       // передвигаем массив вниз
+                            end else begin
+                                Dec(imin);                        // изменили ссылку на минимум
+                                //---
+                                arr[j-1]:=data[i];                         // вставили текущее в освободившуюся ячейку
+                                Break;                                     // вышли из цикла
+                            end;
+                        end;
+                    end else begin                         // если больше или равно то в сторону конца
+                        for j:=imax downto imid do begin
+                            if( data[i].intVal < arr[j].intVal )then begin // если текущее меньше измеренного передвигаем массив вверх
+                                arr[j+1]:=arr[j];                          // передвинули массив
+                            end else begin
+                                inc(imax);                                 // изменили ссылку на максимум
+                                //---
+                                arr[j+1]:=data[i];                         // вставили текущее в освободившуюся ячейку
+                                Break;                                     // вышли из цикла
+                            end;
+                        end;
+                    end;
+                end;
+            end;
+        end;
+    end;
+    //---
+    if( dType = 1 )then begin
+        for i:=1 to Length(data)-1 do begin                                                         Application.ProcessMessages;
+            if( data[i].dblVal < arr[imin].dblVal )then begin//если следующий элемент меньше минимума, ставим его ниже и перезаписваем минимум
+                Dec(imin);                        // изменили ссылку на минимум
+                arr[imin]:=data[i];               // занесли данные
+            end else begin
+                if( data[i].dblVal > arr[imax].dblVal )then begin//если следующий элемент больше максимума
+                    inc(imax);                         // изменили ссылку на максимум
+                    arr[imax]:=data[i];                // занесли данные
+                end else begin
+                    imid:=Trunc((imin+imax)/2)+1;        //определили среднее
+                    if( data[i].dblVal < arr[imid].dblVal )then begin // если текущее значение меньше среднего, то ищем в сторону начала
+                        for j:=imin to imid do begin
+                            if( data[i].dblVal > arr[j].dblVal )then begin
+                                arr[j-1]:=arr[j];       // передвигаем массив вниз
+                            end else begin
+                                Dec(imin);                        // изменили ссылку на минимум
+                                //---
+                                arr[j-1]:=data[i];                         // вставили текущее в освободившуюся ячейку
+                                Break;                                     // вышли из цикла
+                            end;
+                        end;
+                    end else begin                         // если больше или равно то в сторону конца
+                        for j:=imax downto imid do begin
+                            if( data[i].dblVal < arr[j].dblVal )then begin // если текущее меньше измеренного передвигаем массив вверх
+                                arr[j+1]:=arr[j];                          // передвинули массив
+                            end else begin
+                                inc(imax);                                 // изменили ссылку на максимум
+                                //---
+                                arr[j+1]:=data[i];                         // вставили текущее в освободившуюся ячейку
+                                Break;                                     // вышли из цикла
+                            end;
+                        end;
+                    end;
+                end;
+            end;
+        end;
+    end;
+    //---
+    if( dType = 2 )then begin
+        for i:=1 to Length(data)-1 do begin                                                         Application.ProcessMessages;
+            if( data[i].strVal < arr[imin].strVal )then begin//если следующий элемент меньше минимума, ставим его ниже и перезаписваем минимум
+                Dec(imin);                        // изменили ссылку на минимум
+                arr[imin]:=data[i];               // занесли данные
+            end else begin
+                if( data[i].strVal >= arr[imax].strVal )then begin//если следующий элемент больше максимума
+                    inc(imax);                         // изменили ссылку на максимум
+                    arr[imax]:=data[i];                // занесли данные
+                end else begin
+                    imid:=Trunc((imin+imax)/2);        //определили среднее
+                    if( data[i].strVal < arr[imid].strVal )then begin // если текущее значение меньше среднего, то ищем в сторону начала
+                        for j:=imin to imid do begin
+                            if( data[i].strVal >= arr[j].strVal )then begin
+                                arr[j-1]:=arr[j];       // передвигаем массив вниз
+                            end else begin
+                                Dec(imin);                        // изменили ссылку на минимум
+                                //---
+                                arr[j-1]:=data[i];                         // вставили текущее в освободившуюся ячейку
+                                Break;                                     // вышли из цикла
+                            end;
+                        end;
+                    end else begin                         // если больше или равно то в сторону конца
+                        for j:=imax downto imid do begin
+                            if( data[i].strVal < arr[j].strVal )then begin // если текущее меньше измеренного передвигаем массив вверх
+                                arr[j+1]:=arr[j];                          // передвинули массив
+                            end else begin
+                                inc(imax);                                 // изменили ссылку на максимум
+                                //---
+                                arr[j+1]:=data[i];                         // вставили текущее в освободившуюся ячейку
+                                Break;                                     // вышли из цикла
+                            end;
+                        end;
+                    end;
+                end;
+            end;
+        end;
+    end;
+    //---
+    if( sortDir > 0 )then begin
+        for i:=0 to Length(data)-1 do data[i]:=arr[i+imin];
+    end else begin
+        for i:=0 to Length(data)-1 do data[i]:=arr[imax-i];
+    end;
+end;
+//----------------------------------------------------+
 var
-i,ii,sz:Integer;
+i,ii,sz,dType:Integer;
 data:TData;
 dataArr:TAData;
 //----
@@ -493,80 +654,25 @@ begin
     if( FTable.RowCount < 3 )then Exit;
     sz:=FTable.RowCount-1;
     SetLength(dataArr,sz);
-    FTable.Enabled:=False;
+    FTable.Enabled:=False;                                                                          
+    dType:=0;
     //---
-    for i:=1 to sz do begin
+    for i:=1 to sz do begin                                                                         Application.ProcessMessages;
         dataArr[i-1].strRow:=FTable.Rows[i].CommaText;
         case FAHeaders[xPos].ctype of
             tcInt,tcUint : dataArr[i-1].intVal:=StrToInt64Def(FTable.Cells[xpos,i],0);
             tcDate,tcTime,tcDateTime : dataArr[i-1].intVal:=DtmToUnixTime(StrToDateTime(FTable.Cells[xpos,i]));
-            tcDbl : dataArr[i-1].dblVal:=StrToFloatDef(FTable.Cells[xpos,i],0);
+            tcDbl : begin dataArr[i-1].dblVal:=StrToFloatDef(FTable.Cells[xpos,i],0); dType:=1; end;
         else
-            dataArr[i-1].strVal:=FTable.Cells[xpos,i];
+            dataArr[i-1].strVal:=FTable.Cells[xpos,i]; dType:=2;
         end;
-    end;
+    end;                                                                                            GetLog('New Start');
     //---
-    if( FAHeaders[xPos].ctype = tcDbl ) then begin
-        for i:=0 to Length(dataArr)-1 do begin
-            for ii:=i+1 to Length(dataArr)-1 do begin
-                if( sort >= 0 )then begin
-                    if( dataArr[i].dblVal > dataArr[ii].dblVal )then begin
-                        data:=dataArr[ii];
-                        dataArr[ii]:=dataArr[i];
-                        dataArr[i]:=data;
-                    end;
-                end else begin
-                    if( dataArr[i].dblVal < dataArr[ii].dblVal )then begin
-                        data:=dataArr[ii];
-                        dataArr[ii]:=dataArr[i];
-                        dataArr[i]:=data;
-                    end;
-                end;
-            end;
-        end;
-    end else begin
-        if( FAHeaders[xPos].ctype = tcStr )or( FAHeaders[xPos].ctype = tclabel )  then begin
-            for i:=0 to Length(dataArr)-1 do begin
-                for ii:=i+1 to Length(dataArr)-1 do begin
-                    if( sort >= 0 )then begin
-                        if( CompareStr(dataArr[i].strVal,dataArr[ii].strVal) > 0 )then begin
-                            data:=dataArr[ii];
-                            dataArr[ii]:=dataArr[i];
-                            dataArr[i]:=data;
-                        end;
-                    end else begin
-                        if( CompareStr(dataArr[i].strVal,dataArr[ii].strVal) < 0 )then begin
-                            data:=dataArr[ii];
-                            dataArr[ii]:=dataArr[i];
-                            dataArr[i]:=data;
-                        end;
-                    end;
-                end;
-            end;
-        end else begin
-            for i:=0 to Length(dataArr)-1 do begin
-                for ii:=i+1 to Length(dataArr)-1 do begin
-                    if( sort >= 0 )then begin
-                        if( dataArr[i].intVal > dataArr[ii].intVal )then begin
-                            data:=dataArr[ii];
-                            dataArr[ii]:=dataArr[i];
-                            dataArr[i]:=data;
-                        end;
-                    end else begin
-                        if( dataArr[i].intVal < dataArr[ii].intVal )then begin
-                            data:=dataArr[ii];
-                            dataArr[ii]:=dataArr[i];
-                            dataArr[i]:=data;
-                        end;
-                    end;
-                end;
-            end;
-        end;
-    end;
+    FastSort(dataArr,dType,sort);
     //---
     for i:=0 to sz-1 do  FTable.Rows[i+1].CommaText:=dataArr[i].strRow;
     FTable.Enabled:=True;
-    FTable.SetFocus;
+    FTable.SetFocus;                                                                                GetLog('Finish');
 end;
 //-----------------------------------------------------------------------------+
 procedure   TCBaseTable.SetScroll(ScrollStyle:TScrollStyle);begin FTable.ScrollBars:=ScrollStyle;end;

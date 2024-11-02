@@ -35,7 +35,7 @@ begin
     Table.OnClick:=OnTableClick;
     Table.OnDblClick:=OnTableDblClick;
 
-    Table.AddColHeader('DateTime',tcDateTime);
+    Table.AddColHeader('DateTime',tcStr);
     Table.AddColHeader('Open',tcDbl);
     Table.AddColHeader('High',tcDbl);
     Table.AddColHeader('Low',tcDbl);

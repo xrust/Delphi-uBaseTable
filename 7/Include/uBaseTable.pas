@@ -646,6 +646,7 @@ i,ii,sz,dType:Integer;
 data:TData;
 dataArr:TAData;
 utime:Double;
+clr:TColor;
 //----
 begin
     ShortDateFormat:=FDateFormat;
@@ -656,7 +657,10 @@ begin
     if( FTable.RowCount < 3 )then Exit;
     sz:=FTable.RowCount-1;
     SetLength(dataArr,sz);
-    FTable.Enabled:=False;                                                                          
+    //----
+    clr:=FTable.FixedColor;
+    FTable.FixedColor:=$E0E0E0;
+    FTable.Enabled:=False;
     dType:=0;
     //---
     for i:=1 to sz do begin                                                                         Application.ProcessMessages;
@@ -673,6 +677,8 @@ begin
     FastSort(dataArr,dType,sort);
     //---
     for i:=0 to sz-1 do  FTable.Rows[i+1].CommaText:=dataArr[i].strRow;
+    //---
+    FTable.FixedColor:=clr;
     FTable.Enabled:=True;
     FTable.SetFocus;                                                                                //PrintLn(['Finish',UnixTimeCurrentMsDbl-utime]);
 end;

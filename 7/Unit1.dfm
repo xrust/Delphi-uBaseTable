@@ -33,7 +33,10 @@ object Form1: TForm1
     Width = 950
     Height = 384
     Align = alClient
+    Ctl3D = False
+    FixedColor = clMenuBar
     Options = [goFixedVertLine, goFixedHorzLine, goVertLine, goHorzLine, goRowSelect]
+    ParentCtl3D = False
     TabOrder = 1
   end
 end

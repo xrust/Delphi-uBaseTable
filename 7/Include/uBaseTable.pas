@@ -668,13 +668,13 @@ begin
         else
             dataArr[i-1].strVal:=FTable.Cells[xpos,i]; dType:=2;
         end;
-    end;                                                                                            GetLog('New Start');utime:=UnixTimeCurrentMsDbl;
+    end;                                                                                            //GetLog('New Start');utime:=UnixTimeCurrentMsDbl;
     //---
     FastSort(dataArr,dType,sort);
     //---
     for i:=0 to sz-1 do  FTable.Rows[i+1].CommaText:=dataArr[i].strRow;
     FTable.Enabled:=True;
-    FTable.SetFocus;                                                                                PrintLn(['Finish',UnixTimeCurrentMsDbl-utime]);
+    FTable.SetFocus;                                                                                //PrintLn(['Finish',UnixTimeCurrentMsDbl-utime]);
 end;
 //-----------------------------------------------------------------------------+
 procedure   TCBaseTable.SetScroll(ScrollStyle:TScrollStyle);begin FTable.ScrollBars:=ScrollStyle;end;

@@ -502,9 +502,10 @@ type TData = record
 end; TAData = array of TData;
 //----------------------------------------------------+
 procedure FastSort(var data:TAData;dType,sortDir:Integer);
-var i,j:Integer;
+var i,j,k:Integer;
 imax,imin,imid:Integer;
 arr:TAData;
+val:TData;
 begin
     if( dType < 0 )then Exit;
     if( dType > 2 )then Exit;
@@ -514,7 +515,7 @@ begin
     //--- инициализировали минимум и максимум
     imin :=Length(data);
     imax :=Length(data);
-    arr[imin]:=data[0];
+    arr[imin]:=data[0];                                                                             //k:=0;
     //---
     if( dType = 0 )then begin
         for i:=1 to Length(data)-1 do begin                                                         Application.ProcessMessages;
@@ -526,9 +527,9 @@ begin
                     inc(imax);                         // изменили ссылку на максимум
                     arr[imax]:=data[i];                // занесли данные
                 end else begin
-                    imid:=Trunc((imin+imax)/2);        //определили среднее
+                    imid:=Trunc((imin+imax)/2)+1;        //определили среднее
                     if( data[i].intVal < arr[imid].intVal )then begin // если текущее значение меньше среднего, то ищем в сторону начала
-                        for j:=imin to imid do begin
+                        for j:=imin to imid do begin                                                //inc(k);
                             if( data[i].intVal >= arr[j].intVal )then begin
                                 arr[j-1]:=arr[j];       // передвигаем массив вниз
                             end else begin
@@ -539,7 +540,7 @@ begin
                             end;
                         end;
                     end else begin                         // если больше или равно то в сторону конца
-                        for j:=imax downto imid do begin
+                        for j:=imax downto imid do begin                                            //inc(k);
                             if( data[i].intVal < arr[j].intVal )then begin // если текущее меньше измеренного передвигаем массив вверх
                                 arr[j+1]:=arr[j];                          // передвинули массив
                             end else begin
@@ -567,7 +568,7 @@ begin
                 end else begin
                     imid:=Trunc((imin+imax)/2)+1;        //определили среднее
                     if( data[i].dblVal < arr[imid].dblVal )then begin // если текущее значение меньше среднего, то ищем в сторону начала
-                        for j:=imin to imid do begin
+                        for j:=imin to imid do begin                                                //inc(k);
                             if( data[i].dblVal > arr[j].dblVal )then begin
                                 arr[j-1]:=arr[j];       // передвигаем массив вниз
                             end else begin
@@ -578,7 +579,7 @@ begin
                             end;
                         end;
                     end else begin                         // если больше или равно то в сторону конца
-                        for j:=imax downto imid do begin
+                        for j:=imax downto imid do begin                                            //inc(k);
                             if( data[i].dblVal < arr[j].dblVal )then begin // если текущее меньше измеренного передвигаем массив вверх
                                 arr[j+1]:=arr[j];                          // передвинули массив
                             end else begin
@@ -604,7 +605,7 @@ begin
                     inc(imax);                         // изменили ссылку на максимум
                     arr[imax]:=data[i];                // занесли данные
                 end else begin
-                    imid:=Trunc((imin+imax)/2);        //определили среднее
+                    imid:=Trunc((imin+imax)/2)+1;        //определили среднее
                     if( data[i].strVal < arr[imid].strVal )then begin // если текущее значение меньше среднего, то ищем в сторону начала
                         for j:=imin to imid do begin
                             if( data[i].strVal >= arr[j].strVal )then begin
@@ -631,7 +632,7 @@ begin
                 end;
             end;
         end;
-    end;
+    end;                                                                                            //PrintLn(['Iteration : ',k]);
     //---
     if( sortDir > 0 )then begin
         for i:=0 to Length(data)-1 do data[i]:=arr[i+imin];
@@ -644,6 +645,7 @@ var
 i,ii,sz,dType:Integer;
 data:TData;
 dataArr:TAData;
+utime:Double;
 //----
 begin
     ShortDateFormat:=FDateFormat;
@@ -666,13 +668,13 @@ begin
         else
             dataArr[i-1].strVal:=FTable.Cells[xpos,i]; dType:=2;
         end;
-    end;                                                                                            GetLog('New Start');
+    end;                                                                                            GetLog('New Start');utime:=UnixTimeCurrentMsDbl;
     //---
     FastSort(dataArr,dType,sort);
     //---
     for i:=0 to sz-1 do  FTable.Rows[i+1].CommaText:=dataArr[i].strRow;
     FTable.Enabled:=True;
-    FTable.SetFocus;                                                                                GetLog('Finish');
+    FTable.SetFocus;                                                                                PrintLn(['Finish',UnixTimeCurrentMsDbl-utime]);
 end;
 //-----------------------------------------------------------------------------+
 procedure   TCBaseTable.SetScroll(ScrollStyle:TScrollStyle);begin FTable.ScrollBars:=ScrollStyle;end;

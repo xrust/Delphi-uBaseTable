@@ -14,6 +14,10 @@ function  HaveDir(const fn:string; const create:boolean=true):boolean;
 function  GetLocalIP: String;
 function  VarToString(Value: Variant):String;overload;
 function  VarToStringF(Value: Variant; Digits:Integer=8):String;overload
+procedure ArrSort(var data:array of Integer);overload;
+procedure ArrSort(var data:array of Int64);overload;
+procedure ArrSort(var data:array of Double);overload;
+procedure ArrSort(var data:array of string);overload;
 //-----------------------------------------------------------------------------+
 implementation
 //-----------------------------------------------------------------------------+
@@ -152,12 +156,230 @@ begin
     end;
 end;
 //-----------------------------------------------------------------------------+
-
+procedure ArrSort(var data:array of Integer);overload;
+var i,j:Integer;
+arr:array of Integer;
+imax,imin,imid:Int64;
+begin
+    SetLength(arr,Length(data)*2);
+    for i:=0 to Length(arr)-1 do arr[i]:=0;
+    //---
+    imin :=Length(data);
+    imax :=Length(data);
+    arr[imin]:=data[0];
+    //---
+    for i:=1 to Length(data)-1 do begin
+        Application.ProcessMessages;
+        if( data[i] < arr[imin] )then begin
+            Dec(imin);
+            arr[imin]:=data[i];
+        end else begin
+            if( data[i] >= arr[imax] )then begin
+                inc(imax);
+                arr[imax]:=data[i];
+            end else begin
+                imid:=Trunc((imin+imax)/2)+1;
+                if( data[i] < arr[imid] )then begin
+                    for j:=imin to imid do begin
+                        if( data[i] >= arr[j] )then begin
+                            arr[j-1]:=arr[j];
+                        end else begin
+                            Dec(imin);
+                            arr[j-1]:=data[i];
+                            Break;
+                        end;
+                    end;
+                end else begin
+                    for j:=imax downto imid do begin
+                        if( data[i] < arr[j] )then begin
+                            arr[j+1]:=arr[j];
+                        end else begin
+                            inc(imax);
+                            arr[j+1]:=data[i];
+                            Break;
+                        end;
+                    end;
+                end;
+            end;
+        end;
+    end;
+    //---
+    for i:=0 to Length(data)-1 do data[i]:=arr[i+imin];
+end;
 //-----------------------------------------------------------------------------+
-
+procedure ArrSort(var data:array of Int64);overload;
+var i,j:Integer;
+arr:array of Int64;
+imax,imin,imid:Int64;
+begin
+    SetLength(arr,Length(data)*2);
+    for i:=0 to Length(arr)-1 do arr[i]:=0;
+    //---
+    imin :=Length(data);
+    imax :=Length(data);
+    arr[imin]:=data[0];
+    //---
+    for i:=1 to Length(data)-1 do begin
+        Application.ProcessMessages;
+        if( data[i] < arr[imin] )then begin
+            Dec(imin);
+            arr[imin]:=data[i];
+        end else begin
+            if( data[i] >= arr[imax] )then begin
+                inc(imax);
+                arr[imax]:=data[i];
+            end else begin
+                imid:=Trunc((imin+imax)/2)+1;
+                if( data[i] < arr[imid] )then begin
+                    for j:=imin to imid do begin
+                        if( data[i] >= arr[j] )then begin
+                            arr[j-1]:=arr[j];
+                        end else begin
+                            Dec(imin);
+                            arr[j-1]:=data[i];
+                            Break;
+                        end;
+                    end;
+                end else begin
+                    for j:=imax downto imid do begin
+                        if( data[i] < arr[j] )then begin
+                            arr[j+1]:=arr[j];
+                        end else begin
+                            inc(imax);
+                            arr[j+1]:=data[i];
+                            Break;
+                        end;
+                    end;
+                end;
+            end;
+        end;
+    end;
+    //---
+    for i:=0 to Length(data)-1 do data[i]:=arr[i+imin];
+end;
 //-----------------------------------------------------------------------------+
-
+procedure ArrSort(var data:array of Double);overload;
+var i,j:Integer;
+arr:array of Double;
+imax,imin,imid:Int64;
+begin
+    SetLength(arr,Length(data)*2);
+    for i:=0 to Length(arr)-1 do arr[i]:=0;
+    //---
+    imin :=Length(data);
+    imax :=Length(data);
+    arr[imin]:=data[0];
+    //---
+    for i:=1 to Length(data)-1 do begin
+        Application.ProcessMessages;
+        if( data[i] < arr[imin] )then begin
+            Dec(imin);
+            arr[imin]:=data[i];
+        end else begin
+            if( data[i] >= arr[imax] )then begin
+                inc(imax);
+                arr[imax]:=data[i];
+            end else begin
+                imid:=Trunc((imin+imax)/2)+1;
+                if( data[i] < arr[imid] )then begin
+                    for j:=imin to imid do begin
+                        if( data[i] >= arr[j] )then begin
+                            arr[j-1]:=arr[j];
+                        end else begin
+                            Dec(imin);
+                            arr[j-1]:=data[i];
+                            Break;
+                        end;
+                    end;
+                end else begin
+                    for j:=imax downto imid do begin
+                        if( data[i] < arr[j] )then begin
+                            arr[j+1]:=arr[j];
+                        end else begin
+                            inc(imax);
+                            arr[j+1]:=data[i];
+                            Break;
+                        end;
+                    end;
+                end;
+            end;
+        end;
+    end;
+    //---
+    for i:=0 to Length(data)-1 do data[i]:=arr[i+imin];
+end;
 //-----------------------------------------------------------------------------+
-
+procedure ArrSort(var data:array of string);overload;
+var i,j:Integer;
+arr:array of string;
+imax,imin,imid:Int64;
+begin
+    SetLength(arr,Length(data)*2);
+    for i:=0 to Length(arr)-1 do arr[i]:='';
+    //---
+    imin :=Length(data);
+    imax :=Length(data);
+    arr[imin]:=data[0];
+    //---
+    for i:=1 to Length(data)-1 do begin
+        Application.ProcessMessages;
+        if( data[i] < arr[imin] )then begin
+            Dec(imin);
+            arr[imin]:=data[i];
+        end else begin
+            if( data[i] >= arr[imax] )then begin
+                inc(imax);
+                arr[imax]:=data[i];
+            end else begin
+                imid:=Trunc((imin+imax)/2)+1;
+                if( data[i] < arr[imid] )then begin
+                    for j:=imin to imid do begin
+                        if( data[i] >= arr[j] )then begin
+                            arr[j-1]:=arr[j];
+                        end else begin
+                            Dec(imin);
+                            arr[j-1]:=data[i];
+                            Break;
+                        end;
+                    end;
+                end else begin
+                    for j:=imax downto imid do begin
+                        if( data[i] < arr[j] )then begin
+                            arr[j+1]:=arr[j];
+                        end else begin
+                            inc(imax);
+                            arr[j+1]:=data[i];
+                            Break;
+                        end;
+                    end;
+                end;
+            end;
+        end;
+    end;
+    //---
+    for i:=0 to Length(data)-1 do data[i]:=arr[i+imin];
+end;
+//-----------------------------------------------------------------------------+
+//| Рекурсивный квадратичный поиск в отсортированном масииве (почему то очень медленный по сравнению с обычным перебором)
+//-----------------------------------------------------------------------------+
+procedure FlipFlop(data:array of Integer; val:Integer; var min,max:Integer);
+var ind:Integer;
+begin
+    ind:=max-Trunc((max-min)/2);
+    //--- flip
+    while( val < data[ind] )do begin
+        max:=ind;
+        ind:=Trunc(ind/2);
+        if( ind < min )then Exit;
+    end;
+    min:=ind;
+    //--- flop
+    while( val > data[ind] )do begin
+        min:=ind;
+        ind:=ind+Trunc((max-ind)/2)+1;
+        if( ind > max )then Exit;
+    end;
+    max:=ind;
+end;
 //-----------------------------------------------------------------------------+
 end.

@@ -503,7 +503,7 @@ end; TAData = array of TData;
 //----------------------------------------------------+
 procedure FastSort(var data:TAData;dType,sortDir:Integer);
 var i,j,k:Integer;
-imax,imin,imid:Integer;
+imax,imin,imid,fmin,fmax:Integer;
 arr:TAData;
 val:TData;
 begin
@@ -672,15 +672,15 @@ begin
         else
             dataArr[i-1].strVal:=FTable.Cells[xpos,i]; dType:=2;
         end;
-    end;                                                                                            //GetLog('New Start');utime:=UnixTimeCurrentMsDbl;
+    end;                                                                                            GetLog('Sort Start');utime:=UnixTimeCurrentMsDbl;
     //---
-    FastSort(dataArr,dType,sort);
+    FastSort(dataArr,dType,sort);                                                                   PrintLn(['Finish',UnixTimeCurrentMsDbl-utime]);
     //---
     for i:=0 to sz-1 do  FTable.Rows[i+1].CommaText:=dataArr[i].strRow;
     //---
     FTable.FixedColor:=clr;
     FTable.Enabled:=True;
-    FTable.SetFocus;                                                                                //PrintLn(['Finish',UnixTimeCurrentMsDbl-utime]);
+    FTable.SetFocus;
 end;
 //-----------------------------------------------------------------------------+
 procedure   TCBaseTable.SetScroll(ScrollStyle:TScrollStyle);begin FTable.ScrollBars:=ScrollStyle;end;

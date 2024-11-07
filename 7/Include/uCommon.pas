@@ -14,10 +14,10 @@ function  HaveDir(const fn:string; const create:boolean=true):boolean;
 function  GetLocalIP: String;
 function  VarToString(Value: Variant):String;overload;
 function  VarToStringF(Value: Variant; Digits:Integer=8):String;overload
-procedure ArrSort(var data:array of Integer);overload;
-procedure ArrSort(var data:array of Int64);overload;
-procedure ArrSort(var data:array of Double);overload;
-procedure ArrSort(var data:array of string);overload;
+procedure ArrSort(var data:array of Integer; sortByDecrement:Boolean=False);overload;
+procedure ArrSort(var data:array of Int64; sortByDecrement:Boolean=False);overload;
+procedure ArrSort(var data:array of Double; sortByDecrement:Boolean=False);overload;
+procedure ArrSort(var data:array of string; sortByDecrement:Boolean=False);overload;
 //-----------------------------------------------------------------------------+
 implementation
 //-----------------------------------------------------------------------------+
@@ -156,12 +156,11 @@ begin
     end;
 end;
 //-----------------------------------------------------------------------------+
-procedure ArrSort(var data:array of Integer);overload;
+procedure ArrSort(var Data:array of Integer; SortByDecrement:Boolean=False);overload;
 var i,j,imax,imin,imid,fmin,fmax:Integer;
 arr:array of Integer;
 begin
     SetLength(arr,Length(data)*2);
-    for i:=0 to Length(arr)-1 do arr[i]:=0;
     //---
     imin :=Length(data);
     imax :=Length(data);
@@ -201,10 +200,12 @@ begin
         end;
     end;
     //---
-    for i:=0 to Length(data)-1 do data[i]:=arr[i+imin];
+    if( not SortByDecrement )then
+        for i:=0 to Length(data)-1 do data[i]:=arr[i+imin]
+        else for i:=0 to Length(data)-1 do data[i]:=arr[imax-i];
 end;
 //-----------------------------------------------------------------------------+
-procedure ArrSort(var data:array of Int64);overload;
+procedure ArrSort(var data:array of Int64; sortByDecrement:Boolean=False);overload;
 var i,j,imax,imin,imid,fmin,fmax:Integer;
 arr:array of int64;
 begin
@@ -249,10 +250,12 @@ begin
         end;
     end;
     //---
-    for i:=0 to Length(data)-1 do data[i]:=arr[i+imin];
+    if( not SortByDecrement )then
+        for i:=0 to Length(data)-1 do data[i]:=arr[i+imin]
+        else for i:=0 to Length(data)-1 do data[i]:=arr[imax-i];
 end;
 //-----------------------------------------------------------------------------+
-procedure ArrSort(var data:array of Double);overload;
+procedure ArrSort(var data:array of Double; sortByDecrement:Boolean=False);overload;
 var i,j,imax,imin,imid,fmin,fmax:Integer;
 arr:array of Double;
 begin
@@ -297,10 +300,12 @@ begin
         end;
     end;
     //---
-    for i:=0 to Length(data)-1 do data[i]:=arr[i+imin];
+    if( not SortByDecrement )then
+        for i:=0 to Length(data)-1 do data[i]:=arr[i+imin]
+        else for i:=0 to Length(data)-1 do data[i]:=arr[imax-i];
 end;
 //-----------------------------------------------------------------------------+
-procedure ArrSort(var data:array of string);overload;
+procedure ArrSort(var data:array of string; sortByDecrement:Boolean=False);overload;
 var i,j,imax,imin,imid,fmin,fmax:Integer;
 arr:array of string;
 begin
@@ -345,7 +350,9 @@ begin
         end;
     end;
     //---
-    for i:=0 to Length(data)-1 do data[i]:=arr[i+imin];
+    if( not SortByDecrement )then
+        for i:=0 to Length(data)-1 do data[i]:=arr[i+imin]
+        else for i:=0 to Length(data)-1 do data[i]:=arr[imax-i];
 end;
 //-----------------------------------------------------------------------------+
 //| Рекурсивный квадратичный поиск в отсортированном масииве

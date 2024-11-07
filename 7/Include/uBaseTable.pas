@@ -500,152 +500,175 @@ type TData = record
     strVal:ShortString;
     strRow:string;
 end; TAData = array of TData;
+//---
+type TIndex = record
+    intVal:Int64;
+    dblVal:Double;
+    strVal:ShortString;
+    i:Integer;
+end; TAIndex = array of TIndex;
 //----------------------------------------------------+
-procedure FastSort(var data:TAData;dType,sortDir:Integer);
-var i,j,k:Integer;
+procedure SortByIndex(var table:TAData;dType,sortDir:Integer);
+var i,j:Integer;
 imax,imin,imid,fmin,fmax:Integer;
-arr:TAData;
-val:TData;
+buff:TAData;
+arr,data:TAIndex;
 begin
     if( dType < 0 )then Exit;
     if( dType > 2 )then Exit;
     if( sortDir=0 )then Exit;
     //---
-    SetLength(arr,Length(data)*2);
+    SetLength(buff,Length(table));
+    SetLength(data,Length(table));
+    case( dType )of
+        0 : for i:=0 to Length(table)-1 do begin data[i].intVal:=table[i].intVal;data[i].i:=i;end;
+        1 : for i:=0 to Length(table)-1 do begin data[i].dblVal:=table[i].dblVal;data[i].i:=i;end;
+        2 : for i:=0 to Length(table)-1 do begin data[i].strVal:=table[i].strVal;data[i].i:=i;end;
+    end;
+    //---
+    SetLength(arr,Length(table)*2);
     //--- инициализировали минимум и максимум
-    imin :=Length(data);
-    imax :=Length(data);
-    arr[imin]:=data[0];                                                                             //k:=0;
+    imin :=Length(table);
+    imax :=Length(table);
+    arr[imin]:=data[0];
     //---
     if( dType = 0 )then begin
-        for i:=1 to Length(data)-1 do begin                                                         Application.ProcessMessages;
-            if( data[i].intVal < arr[imin].intVal )then begin//если следующий элемент меньше минимума, ставим его ниже и перезаписваем минимум
-                Dec(imin);                        // изменили ссылку на минимум
-                arr[imin]:=data[i];               // занесли данные
+        for i:=1 to Length(data)-1 do begin
+            Application.ProcessMessages;
+            if( data[i].intVal < arr[imin].intVal )then begin
+                Dec(imin);
+                arr[imin]:=data[i];
             end else begin
-                if( data[i].intVal >= arr[imax].intVal )then begin//если следующий элемент больше максимума
-                    inc(imax);                         // изменили ссылку на максимум
-                    arr[imax]:=data[i];                // занесли данные
+                if( data[i].intVal >= arr[imax].intVal )then begin
+                    inc(imax);
+                    arr[imax]:=data[i];
                 end else begin
-                    imid:=Trunc((imin+imax)/2)+1;        //определили среднее
-                    if( data[i].intVal < arr[imid].intVal )then begin // если текущее значение меньше среднего, то ищем в сторону начала
-                        for j:=imin to imid do begin                                                //inc(k);
-                            if( data[i].intVal >= arr[j].intVal )then begin
-                                arr[j-1]:=arr[j];       // передвигаем массив вниз
-                            end else begin
-                                Dec(imin);                        // изменили ссылку на минимум
-                                //---
-                                arr[j-1]:=data[i];                         // вставили текущее в освободившуюся ячейку
-                                Break;                                     // вышли из цикла
-                            end;
-                        end;
-                    end else begin                         // если больше или равно то в сторону конца
-                        for j:=imax downto imid do begin                                            //inc(k);
-                            if( data[i].intVal < arr[j].intVal )then begin // если текущее меньше измеренного передвигаем массив вверх
-                                arr[j+1]:=arr[j];                          // передвинули массив
-                            end else begin
-                                inc(imax);                                 // изменили ссылку на максимум
-                                //---
-                                arr[j+1]:=data[i];                         // вставили текущее в освободившуюся ячейку
-                                Break;                                     // вышли из цикла
-                            end;
-                        end;
+                    fmin:=imin;
+                    fmax:=imax;
+                    while( fmax-fmin > 32 )do begin
+                        imid:=Trunc(fmin+(fmax-fmin)/2);
+                        if( data[i].intVal < arr[imid].intVal )then fmax:=imid else fmin:=imid;
+                    end;
+                    for j:=fmax downto fmin do begin
+                        if( data[i].intVal < arr[j].intVal )then Continue;
+                        imid:=j;
+                        Break;
+                    end;
+                    if( imid < Trunc((imin+imax)/2) )then begin
+                        for j:=imin to imid do arr[j-1]:=arr[j];
+                        arr[imid]:=data[i];
+                        Dec(imin);
+                    end else begin
+                        for j:=imax downto imid+1 do arr[j+1]:=arr[j];
+                        arr[imid+1]:=data[i];
+                        inc(imax);
                     end;
                 end;
             end;
         end;
+        //---
+        if( sortDir > 0 )then
+            for i:=0 to Length(data)-1 do data[i]:=arr[i+imin]
+                else for i:=0 to Length(data)-1 do data[i]:=arr[imax-i];
+        //---
+        for i:=0 to Length(data)-1 do buff[i]:=table[data[i].i];
+        //---
+        table:=buff;
     end;
     //---
     if( dType = 1 )then begin
-        for i:=1 to Length(data)-1 do begin                                                         Application.ProcessMessages;
-            if( data[i].dblVal < arr[imin].dblVal )then begin//если следующий элемент меньше минимума, ставим его ниже и перезаписваем минимум
-                Dec(imin);                        // изменили ссылку на минимум
-                arr[imin]:=data[i];               // занесли данные
+        for i:=1 to Length(data)-1 do begin
+            Application.ProcessMessages;
+            if( data[i].dblVal < arr[imin].dblVal )then begin
+                Dec(imin);
+                arr[imin]:=data[i];
             end else begin
-                if( data[i].dblVal > arr[imax].dblVal )then begin//если следующий элемент больше максимума
-                    inc(imax);                         // изменили ссылку на максимум
-                    arr[imax]:=data[i];                // занесли данные
+                if( data[i].dblVal >= arr[imax].dblVal )then begin
+                    inc(imax);
+                    arr[imax]:=data[i];
                 end else begin
-                    imid:=Trunc((imin+imax)/2)+1;        //определили среднее
-                    if( data[i].dblVal < arr[imid].dblVal )then begin // если текущее значение меньше среднего, то ищем в сторону начала
-                        for j:=imin to imid do begin                                                //inc(k);
-                            if( data[i].dblVal > arr[j].dblVal )then begin
-                                arr[j-1]:=arr[j];       // передвигаем массив вниз
-                            end else begin
-                                Dec(imin);                        // изменили ссылку на минимум
-                                //---
-                                arr[j-1]:=data[i];                         // вставили текущее в освободившуюся ячейку
-                                Break;                                     // вышли из цикла
-                            end;
-                        end;
-                    end else begin                         // если больше или равно то в сторону конца
-                        for j:=imax downto imid do begin                                            //inc(k);
-                            if( data[i].dblVal < arr[j].dblVal )then begin // если текущее меньше измеренного передвигаем массив вверх
-                                arr[j+1]:=arr[j];                          // передвинули массив
-                            end else begin
-                                inc(imax);                                 // изменили ссылку на максимум
-                                //---
-                                arr[j+1]:=data[i];                         // вставили текущее в освободившуюся ячейку
-                                Break;                                     // вышли из цикла
-                            end;
-                        end;
+                    fmin:=imin;
+                    fmax:=imax;
+                    while( fmax-fmin > 32 )do begin
+                        imid:=Trunc(fmin+(fmax-fmin)/2);
+                        if( data[i].dblVal < arr[imid].dblVal )then fmax:=imid else fmin:=imid;
+                    end;
+                    for j:=fmax downto fmin do begin
+                        if( data[i].dblVal < arr[j].dblVal )then Continue;
+                        imid:=j;
+                        Break;
+                    end;
+                    if( imid < Trunc((imin+imax)/2) )then begin
+                        for j:=imin to imid do arr[j-1]:=arr[j];
+                        arr[imid]:=data[i];
+                        Dec(imin);
+                    end else begin
+                        for j:=imax downto imid+1 do arr[j+1]:=arr[j];
+                        arr[imid+1]:=data[i];
+                        inc(imax);
                     end;
                 end;
             end;
         end;
+        //---
+        if( sortDir > 0 )then
+            for i:=0 to Length(data)-1 do data[i]:=arr[i+imin]
+                else for i:=0 to Length(data)-1 do data[i]:=arr[imax-i];
+        //---
+        for i:=0 to Length(data)-1 do buff[i]:=table[data[i].i];
+        //---
+        table:=buff;
     end;
     //---
     if( dType = 2 )then begin
-        for i:=1 to Length(data)-1 do begin                                                         Application.ProcessMessages;
-            if( data[i].strVal < arr[imin].strVal )then begin//если следующий элемент меньше минимума, ставим его ниже и перезаписваем минимум
-                Dec(imin);                        // изменили ссылку на минимум
-                arr[imin]:=data[i];               // занесли данные
+        for i:=1 to Length(data)-1 do begin
+            Application.ProcessMessages;
+            if( data[i].strVal < arr[imin].strVal )then begin
+                Dec(imin);
+                arr[imin]:=data[i];
             end else begin
-                if( data[i].strVal >= arr[imax].strVal )then begin//если следующий элемент больше максимума
-                    inc(imax);                         // изменили ссылку на максимум
-                    arr[imax]:=data[i];                // занесли данные
+                if( data[i].strVal >= arr[imax].strVal )then begin
+                    inc(imax);
+                    arr[imax]:=data[i];
                 end else begin
-                    imid:=Trunc((imin+imax)/2)+1;        //определили среднее
-                    if( data[i].strVal < arr[imid].strVal )then begin // если текущее значение меньше среднего, то ищем в сторону начала
-                        for j:=imin to imid do begin
-                            if( data[i].strVal >= arr[j].strVal )then begin
-                                arr[j-1]:=arr[j];       // передвигаем массив вниз
-                            end else begin
-                                Dec(imin);                        // изменили ссылку на минимум
-                                //---
-                                arr[j-1]:=data[i];                         // вставили текущее в освободившуюся ячейку
-                                Break;                                     // вышли из цикла
-                            end;
-                        end;
-                    end else begin                         // если больше или равно то в сторону конца
-                        for j:=imax downto imid do begin
-                            if( data[i].strVal < arr[j].strVal )then begin // если текущее меньше измеренного передвигаем массив вверх
-                                arr[j+1]:=arr[j];                          // передвинули массив
-                            end else begin
-                                inc(imax);                                 // изменили ссылку на максимум
-                                //---
-                                arr[j+1]:=data[i];                         // вставили текущее в освободившуюся ячейку
-                                Break;                                     // вышли из цикла
-                            end;
-                        end;
+                    fmin:=imin;
+                    fmax:=imax;
+                    while( fmax-fmin > 32 )do begin
+                        imid:=Trunc(fmin+(fmax-fmin)/2);
+                        if( data[i].strVal < arr[imid].strVal )then fmax:=imid else fmin:=imid;
+                    end;
+                    for j:=fmax downto fmin do begin
+                        if( data[i].strVal < arr[j].strVal )then Continue;
+                        imid:=j;
+                        Break;
+                    end;
+                    if( imid < Trunc((imin+imax)/2) )then begin
+                        for j:=imin to imid do arr[j-1]:=arr[j];
+                        arr[imid]:=data[i];
+                        Dec(imin);
+                    end else begin
+                        for j:=imax downto imid+1 do arr[j+1]:=arr[j];
+                        arr[imid+1]:=data[i];
+                        inc(imax);
                     end;
                 end;
             end;
         end;
-    end;                                                                                            //PrintLn(['Iteration : ',k]);
-    //---
-    if( sortDir > 0 )then begin
-        for i:=0 to Length(data)-1 do data[i]:=arr[i+imin];
-    end else begin
-        for i:=0 to Length(data)-1 do data[i]:=arr[imax-i];
+        //---
+        if( sortDir > 0 )then
+            for i:=0 to Length(data)-1 do data[i]:=arr[i+imin]
+                else for i:=0 to Length(data)-1 do data[i]:=arr[imax-i];
+        //---
+        for i:=0 to Length(data)-1 do buff[i]:=table[data[i].i];
+        //---
+        table:=buff;
     end;
-end;
+    //---    
+end;    
 //----------------------------------------------------+
 var
-i,ii,sz,dType:Integer;
-data:TData;
+i,sz,dType:Integer;
 dataArr:TAData;
-utime:Double;
 clr:TColor;
 //----
 begin
@@ -663,7 +686,7 @@ begin
     FTable.Enabled:=False;
     dType:=0;
     //---
-    for i:=1 to sz do begin                                                                         Application.ProcessMessages;
+    for i:=1 to sz do begin                                                                         
         dataArr[i-1].strRow:=FTable.Rows[i].CommaText;
         case FAHeaders[xPos].ctype of
             tcInt,tcUint : dataArr[i-1].intVal:=StrToInt64Def(FTable.Cells[xpos,i],0);
@@ -672,9 +695,9 @@ begin
         else
             dataArr[i-1].strVal:=FTable.Cells[xpos,i]; dType:=2;
         end;
-    end;                                                                                            GetLog('Sort Start');utime:=UnixTimeCurrentMsDbl;
+    end;
     //---
-    FastSort(dataArr,dType,sort);                                                                   PrintLn(['Finish',UnixTimeCurrentMsDbl-utime]);
+    SortByIndex(dataArr,dType,sort);
     //---
     for i:=0 to sz-1 do  FTable.Rows[i+1].CommaText:=dataArr[i].strRow;
     //---

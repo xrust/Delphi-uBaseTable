@@ -163,29 +163,52 @@ begin
     //---
 end;
 //-----------------------------------------------------------------------------+
-procedure   TCBaseTable.RowAdd(DelimitedText:string;Delimiter:AnsiChar);var row:TStringList;
+procedure   TCBaseTable.RowAdd(DelimitedText:string;Delimiter:AnsiChar);var i:Integer; row:TStringList;
 begin
     if( FTable.RowCount < FLastRow + 2 )then FTable.RowCount:=FLastRow + 2;
-    row:=TStringList.Create;
-    row.Delimiter:=Delimiter;
-    row.DelimitedText:=DelimitedText;
-    row.Text:=StringReplace(row.Text,'_',' ',[rfReplaceAll, rfIgnoreCase]);
-    FTable.Rows[FLastRow+1].AddStrings(row);
-    row.Free;
+    try
+        //---
+        DelimitedText:=StringReplace(DelimitedText,#13,'',[rfReplaceAll, rfIgnoreCase]);
+        DelimitedText:=StringReplace(DelimitedText,#10,'_',[rfReplaceAll, rfIgnoreCase]);
+        //---
+        row:=TStringList.Create;
+        row.Delimiter:=Delimiter;
+        row.DelimitedText:=DelimitedText;
+        row.Text:=StringReplace(row.Text,'_',' ',[rfReplaceAll, rfIgnoreCase]);
+        //---
+        if( row.Count > FTable.ColCount )then
+            for i:=0 to FTable.ColCount do FTable.Cells[i,FLastRow+1]:=Trim(row[i])
+            else FTable.Rows[FLastRow+1].AddStrings(row);row.count;
+        //---
+        row.Free;
+    except
+        
+    end;
     inc(FLastRow);
 end;
 //-----------------------------------------------------------------------------+
 procedure   TCBaseTable.RowInsert(ARow:Word;DelimitedText:string;Delimiter:AnsiChar);var row:TStringList;
 begin
-    if( FTable.RowCount < ARow + 2 )then begin
-        FTable.RowCount:=ARow + 2;
-    end;    
-    row:=TStringList.Create;
-    row.Delimiter:=Delimiter;
-    row.DelimitedText:=DelimitedText;
-    row.Text:=StringReplace(row.Text,'_',' ',[rfReplaceAll, rfIgnoreCase]);
-    FTable.Rows[ARow+1].AddStrings(row);
-    row.Free;
+    if( FTable.RowCount < ARow + 2 )then FTable.RowCount:=ARow + 2;
+    //---
+    DelimitedText:=StringReplace(DelimitedText,#13,'',[rfReplaceAll, rfIgnoreCase]);
+    DelimitedText:=StringReplace(DelimitedText,#10,'_',[rfReplaceAll, rfIgnoreCase]);
+    //---
+    try
+        row:=TStringList.Create;
+        row.Delimiter:=Delimiter;
+        row.DelimitedText:=DelimitedText;
+        row.Text:=StringReplace(row.Text,'_',' ',[rfReplaceAll, rfIgnoreCase]);
+        //---
+        if( row.Count > FTable.ColCount )then
+            for i:=0 to FTable.ColCount do FTable.Cells[i,FLastRow+1]:=Trim(row[i])
+            else FTable.Rows[FLastRow+1].AddStrings(row);row.count;
+        //---
+        FTable.Rows[ARow+1].AddStrings(row);
+        row.Free;
+    except
+
+    end;
     FLastRow:=RowsCount;
 end;
 //-----------------------------------------------------------------------------+

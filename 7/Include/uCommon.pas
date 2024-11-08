@@ -6,6 +6,12 @@ interface
 //-----------------------------------------------------------------------------+
 uses Windows, Messages, SysUtils, Variants, Classes, Controls, Forms, StdCtrls, ExtCtrls, WinSock, Mask;
 //-----------------------------------------------------------------------------+
+const INT_MAX = 2147483647;
+const INT_MIN = -2147483647;
+const UINT_MAX = 4294967295;
+const INT64_MAX = 9223372036854775807;
+const INT64_MIN = -9223372036854775807;
+//-----------------------------------------------------------------------------+
 type TTypeOfVars = (tvString,tvUint,tvInt,tvDouble,tvIpAddr,tvDate,tvTime,tvDateTime);
 //-----------------------------------------------------------------------------+
 procedure CheckKeyPress(TypeVar:TTypeOfVars; WinComp:TComponent; var Key: Char);

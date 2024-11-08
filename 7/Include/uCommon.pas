@@ -17,7 +17,8 @@ function  VarToStringF(Value: Variant; Digits:Integer=8):String;overload
 procedure ArrSort(var data:array of Integer; sortByDecrement:Boolean=False);overload;
 procedure ArrSort(var data:array of Int64; sortByDecrement:Boolean=False);overload;
 procedure ArrSort(var data:array of Double; sortByDecrement:Boolean=False);overload;
-procedure ArrSort(var data:array of string; sortByDecrement:Boolean=False);overload;
+procedure ArrSort(var data:array of ShortString; sortByDecrement:Boolean=False);overload;
+procedure ArrSort(var data:array of AnsiString; sortByDecrement:Boolean=False);overload;
 //-----------------------------------------------------------------------------+
 implementation
 //-----------------------------------------------------------------------------+
@@ -238,11 +239,11 @@ begin
                     Break;
                 end;
                 if( imid < Trunc((imin+imax)/2) )then begin
-                    Move(arr[imin],arr[imin-1],(1+imid-imin)*sizeof(Integer));
+                    Move(arr[imin],arr[imin-1],(1+imid-imin)*sizeof(Int64));
                     arr[imid]:=data[i];
                     Dec(imin);
                 end else begin
-                    Move(arr[imid+1],arr[imid+2],(1+imax-imid)*sizeof(Integer));
+                    Move(arr[imid+1],arr[imid+2],(1+imax-imid)*sizeof(Int64));
                     arr[imid+1]:=data[i];
                     inc(imax);
                 end;
@@ -288,11 +289,11 @@ begin
                     Break;
                 end;
                 if( imid < Trunc((imin+imax)/2) )then begin
-                    Move(arr[imin],arr[imin-1],(1+imid-imin)*sizeof(Integer));
+                    Move(arr[imin],arr[imin-1],(1+imid-imin)*sizeof(Double));
                     arr[imid]:=data[i];
                     Dec(imin);
                 end else begin
-                    Move(arr[imid+1],arr[imid+2],(1+imax-imid)*sizeof(Integer));
+                    Move(arr[imid+1],arr[imid+2],(1+imax-imid)*sizeof(Double));
                     arr[imid+1]:=data[i];
                     inc(imax);
                 end;
@@ -305,7 +306,7 @@ begin
         else for i:=0 to Length(data)-1 do data[i]:=arr[imax-i];
 end;
 //-----------------------------------------------------------------------------+
-procedure ArrSort(var data:array of string; sortByDecrement:Boolean=False);overload;
+procedure ArrSort(var data:array of ShortString; sortByDecrement:Boolean=False);overload;
 var i,j,imax,imin,imid,fmin,fmax:Integer;
 arr:array of string;
 begin
@@ -338,11 +339,61 @@ begin
                     Break;
                 end;
                 if( imid < Trunc((imin+imax)/2) )then begin
-                    Move(arr[imin],arr[imin-1],(1+imid-imin)*sizeof(Integer));
+                    Move(arr[imin],arr[imin-1],(1+imid-imin)*sizeof(ShortString));
                     arr[imid]:=data[i];
                     Dec(imin);
                 end else begin
-                    Move(arr[imid+1],arr[imid+2],(1+imax-imid)*sizeof(Integer));
+                    Move(arr[imid+1],arr[imid+2],(1+imax-imid)*sizeof(ShortString));
+                    arr[imid+1]:=data[i];
+                    inc(imax);
+                end;
+            end;
+        end;
+    end;
+    //---
+    if( not SortByDecrement )then
+        for i:=0 to Length(data)-1 do data[i]:=arr[i+imin]
+        else for i:=0 to Length(data)-1 do data[i]:=arr[imax-i];
+end;
+//-----------------------------------------------------------------------------+
+procedure ArrSort(var data:array of AnsiString; sortByDecrement:Boolean=False);overload;
+var i,j,imax,imin,imid,fmin,fmax:Integer;
+arr:array of string;
+begin
+    SetLength(arr,Length(data)*2);
+    for i:=0 to Length(arr)-1 do arr[i]:='';
+    //---
+    imin :=Length(data);
+    imax :=Length(data);
+    arr[imin]:=data[0];
+    //---
+    for i:=1 to Length(data)-1 do begin
+        Application.ProcessMessages;
+        if( data[i] < arr[imin] )then begin
+            Dec(imin);
+            arr[imin]:=data[i];
+        end else begin
+            if( data[i] >= arr[imax] )then begin
+                inc(imax);
+                arr[imax]:=data[i];
+            end else begin
+                fmin:=imin;
+                fmax:=imax;
+                while( fmax-fmin > 32 )do begin
+                    imid:=Trunc(fmin+(fmax-fmin)/2);
+                    if( data[i] < arr[imid] )then fmax:=imid else fmin:=imid;
+                end;
+                for j:=fmax downto fmin do begin
+                    if( data[i] < arr[j] )then Continue;
+                    imid:=j;
+                    Break;
+                end;
+                if( imid < Trunc((imin+imax)/2) )then begin
+                    for j:=imin to imid do arr[j-1]:=arr[j];
+                    arr[imid]:=data[i];
+                    Dec(imin);
+                end else begin
+                    for j:=imax downto imid+1 do arr[j+1]:=arr[j];
                     arr[imid+1]:=data[i];
                     inc(imax);
                 end;

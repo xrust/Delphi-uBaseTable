@@ -12,6 +12,7 @@ procedure CheckKeyPress(TypeVar:TTypeOfVars; WinComp:TComponent; var Key: Char);
 //-----------------------------------------------------------------------------+
 function  HaveDir(const fn:string; const create:boolean=true):boolean;
 function  GetLocalIP: String;
+function  IntToStr64(Value: Int64): string;
 function  VarToString(Value: Variant):String;overload;
 function  VarToStringF(Value: Variant; Digits:Integer=8):String;overload
 procedure ArrSort(var data:array of Integer; sortByDecrement:Boolean=False);overload;
@@ -20,7 +21,34 @@ procedure ArrSort(var data:array of Double; sortByDecrement:Boolean=False);overl
 procedure ArrSort(var data:array of ShortString; sortByDecrement:Boolean=False);overload;
 procedure ArrSort(var data:array of AnsiString; sortByDecrement:Boolean=False);overload;
 //-----------------------------------------------------------------------------+
+function iInc(val:Byte;i:Byte=1):Byte;overload;
+function iInc(val:ShortInt;i:Byte=1):ShortInt;overload;
+function iInc(val:Word;i:Word=1):Word;overload;
+function iInc(val:LongWord;i:LongWord=1):LongWord;overload;
+function iInc(val:Integer;i:Integer=1):Integer;overload;
+function iInc(val:Int64;i:Int64=1):Int64;overload;
+function iDec(val:Byte;i:Byte=1):Byte;overload;
+function iDec(val:ShortInt;i:Byte=1):ShortInt;overload;
+function iDec(val:Word;i:Word=1):Word;overload;
+function iDec(val:LongWord;i:LongWord=1):LongWord;overload;
+function iDec(val:Integer;i:Integer=1):Integer;overload;
+function iDec(val:Int64;i:Int64=1):Int64;overload;
+//-----------------------------------------------------------------------------+
 implementation
+//-----------------------------------------------------------------------------+
+function iInc(val:Byte;i:Byte=1):Byte;overload;begin inc(val,i);Result:=val;end;
+function iInc(val:ShortInt;i:Byte=1):ShortInt;overload;begin inc(val,i);Result:=val;end;
+function iInc(val:Word;i:Word=1):Word;overload;begin inc(val,i);Result:=val;end;
+function iInc(val:LongWord;i:LongWord=1):LongWord;overload;begin inc(val,i);Result:=val;end;
+function iInc(val:Integer;i:Integer=1):Integer;overload;begin inc(val,i);Result:=val;end;
+function iInc(val:Int64;i:Int64=1):Int64;overload;begin inc(val,i);Result:=val;end;
+//-----------------------------------------------------------------------------+
+function iDec(val:Byte;i:Byte=1):Byte;overload;begin Dec(val,i);Result:=val;end;
+function iDec(val:ShortInt;i:Byte=1):ShortInt;overload;begin Dec(val,i);Result:=val;end;
+function iDec(val:Word;i:Word=1):Word;overload;begin Dec(val,i);Result:=val;end;
+function iDec(val:LongWord;i:LongWord=1):LongWord;overload;begin Dec(val,i);Result:=val;end;
+function iDec(val:Integer;i:Integer=1):Integer;overload;begin Dec(val,i);Result:=val;end;
+function iDec(val:Int64;i:Int64=1):Int64;overload;begin Dec(val,i);Result:=val;end;
 //-----------------------------------------------------------------------------+
 procedure CheckKeyPress(TypeVar:TTypeOfVars; WinComp:TComponent; var Key: Char);
 var text:string;
@@ -76,6 +104,113 @@ begin
     end;
 end;
 //-----------------------------------------------------------------------------+
+procedure CvtInt64;
+asm
+        OR      CL, CL
+        JNZ     @start             // CL = 0  => signed integer conversion
+        MOV     ECX, 10
+        TEST    [EAX + 4], $80000000
+        JZ      @start
+        PUSH    [EAX + 4]
+        PUSH    [EAX]
+        MOV     EAX, ESP
+        NEG     [ESP]              // negate the value
+        ADC     [ESP + 4],0
+        NEG     [ESP + 4]
+        CALL    @start             // perform unsigned conversion
+        MOV     [ESI-1].Byte, '-'  // tack on the negative sign
+        DEC     ESI
+        INC     ECX
+        ADD     ESP, 8
+        RET
+
+@start:   // perform unsigned conversion
+        PUSH    ESI
+        SUB     ESP, 4
+        FNSTCW  [ESP+2].Word     // save
+        FNSTCW  [ESP].Word       // scratch
+        OR      [ESP].Word, $0F00  // trunc toward zero, full precision
+        FLDCW   [ESP].Word
+
+        MOV     [ESP].Word, CX
+        FLD1
+        TEST    [EAX + 4], $80000000 // test for negative
+        JZ      @ld1                 // FPU doesn't understand unsigned ints
+        PUSH    [EAX + 4]            // copy value before modifying
+        PUSH    [EAX]
+        AND     [ESP + 4], $7FFFFFFF // clear the sign bit
+        PUSH    $7FFFFFFF
+        PUSH    $FFFFFFFF
+        FILD    [ESP + 8].QWord     // load value
+        FILD    [ESP].QWord
+        FADD    ST(0), ST(2)        // Add 1.  Produces unsigned $80000000 in ST(0)
+        FADDP   ST(1), ST(0)        // Add $80000000 to value to replace the sign bit
+        ADD     ESP, 16
+        JMP     @ld2
+@ld1:
+        FILD    [EAX].QWord         // value
+@ld2:
+        FILD    [ESP].Word          // base
+        FLD     ST(1)
+@loop:
+        DEC     ESI
+        FPREM                       // accumulator mod base
+        FISTP   [ESP].Word
+        FDIV    ST(1), ST(0)        // accumulator := acumulator / base
+        MOV     AL, [ESP].Byte      // overlap long FPU division op with int ops
+        ADD     AL, '0'
+        CMP     AL, '0'+10
+        JB      @store
+        ADD     AL, ('A'-'0')-10
+@store:
+        MOV     [ESI].Byte, AL
+        FLD     ST(1)           // copy accumulator
+        FCOM    ST(3)           // if accumulator >= 1.0 then loop
+        FSTSW   AX
+        SAHF
+        JAE @loop
+
+        FLDCW   [ESP+2].Word
+        ADD     ESP,4
+
+        FFREE   ST(3)
+        FFREE   ST(2)
+        FFREE   ST(1);
+        FFREE   ST(0);
+
+        POP     ECX             // original ESI
+        SUB     ECX, ESI        // ECX = length of converted string
+        SUB     EDX,ECX
+        JBE     @done           // output longer than field width = no pad
+        SUB     ESI,EDX
+        MOV     AL,'0'
+        ADD     ECX,EDX
+        JMP     @z
+@zloop: MOV     [ESI+EDX].Byte,AL
+@z:     DEC     EDX
+        JNZ     @zloop
+        MOV     [ESI].Byte,AL
+@done:
+end;
+//-----------------------------------------------------------------------------+
+function IntToStr64(Value: Int64): string;
+asm
+        PUSH    ESI
+        MOV     ESI, ESP
+        SUB     ESP, 32        // 32 chars
+        XOR     ECX, ECX       // base 10 signed
+        PUSH    EAX            // result ptr
+        XOR     EDX, EDX       // zero filled field width: 0 for no leading zeros
+        LEA     EAX, Value;
+        CALL    CvtInt64
+
+        MOV     EDX, ESI
+        POP     EAX            // result ptr
+        CALL    System.@LStrFromPCharLen
+        ADD     ESP, 32
+        POP     ESI
+end;
+//-----------------------------------------------------------------------------+
 function VarToString(Value: Variant):String;
 begin
     Result:='';
@@ -87,8 +222,8 @@ begin
             varSmallInt,
             varInteger,
             varWord,
-            varLongWord,
-            varInt64    : Result := IntToStr(Value);
+            varLongWord : Result := IntToStr(Value);
+            varInt64    : Result := IntToStr64(Value);
             varSingle,
             varDouble,
             varCurrency : Result := FloatToStr(Value);//,ffFixed,20,10);
@@ -113,8 +248,8 @@ begin
             varSmallInt,
             varInteger,
             varWord,
-            varLongWord,
-            varInt64    : Result := IntToStr(Value);
+            varLongWord : Result := IntToStr(Value);
+            varInt64    : Result := IntToStr64(Value);
             varSingle,
             varDouble,
             varCurrency : Result := FloatToStrF(Value,ffFixed,20,Digits);

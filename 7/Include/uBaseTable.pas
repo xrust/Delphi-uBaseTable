@@ -38,6 +38,9 @@ type TCBaseTable = class
         FClick      : TTableMouseEvent;
         FDblClick   : TTableMouseEvent;
         //---
+        FPanel      : TPanel;
+
+        //---
         procedure   SetSortable(sort:Boolean);
         function    IsCollumnSortable(AColl:Integer):Boolean;
         procedure   SetScroll(ScrollStyle:TScrollStyle);
@@ -71,6 +74,8 @@ type TCBaseTable = class
         FTimeFormat : ShortString;
         //---
         FCellSelect : Boolean;
+        FSelctedColl: Integer;
+        FSelectedRow: Integer;
         //---
         FTable      : PStringGrid;
         //---
@@ -81,6 +86,8 @@ type TCBaseTable = class
         procedure   FOnMouseWheelDown(Sender: TObject; Shift: TShiftState; MousePos: TPoint; var Handled: Boolean);
         procedure   FOnMouseWheelUp(Sender: TObject; Shift: TShiftState; MousePos: TPoint; var Handled: Boolean);
         procedure   FOnDblClick(Sender: TObject);
+        procedure   FOnKeyDown(Sender: TObject; var Key: Word; Shift: TShiftState);
+        procedure   FOnSelectCell(Sender: TObject; ACol, ARow: Integer; var CanSelect: Boolean);
     public
         constructor Create(Grid:PStringGrid; ColCount:Word=2; RowCount:Word=5; RowHeight:Word=22);
         procedure   AutoWidth;
@@ -124,7 +131,10 @@ begin
     OddColor    :=$EEEEEE;//C0C0C0
     TextColor   :=clBlack;
     SelColor    :=$FEF1E1;
+    //---
     FCellSelect :=False;
+    FSelctedColl:=0;
+    FSelectedRow:=0;
     //---
     FDateFormat := 'yyyy.mm.dd';
     FTimeFormat := 'hh:nn:ss';
@@ -160,7 +170,12 @@ begin
     FTable.OnMouseWheelDown:=FOnMouseWheelDown;
     FTable.OnMouseWheelUp:=FOnMouseWheelUp;
     FTable.OnDblClick:=FOnDblClick;
+    FTable.OnKeyDown:=FOnKeyDown;
+    FTable.OnSelectCell:=FOnSelectCell;
     //---
+
+
+
 end;
 //-----------------------------------------------------------------------------+
 procedure   TCBaseTable.RowAdd(DelimitedText:string;Delimiter:AnsiChar);
@@ -367,6 +382,25 @@ begin
         end;
         for i:=0 to FTable.ColCount-1 do FTable.ColWidths[i]:=FAHeaders[i].calcWidth;
     end;
+end;
+//-----------------------------------------------------------------------------+
+procedure   TCBaseTable.FOnKeyDown(Sender: TObject; var Key: Word; Shift: TShiftState);
+var doSearch:Boolean;
+begin
+    doSearch:=False;
+    if(ssCtrl in Shift )then begin
+        if( Key = 70 )then doSearch:=True;
+    end else begin
+        if( Key = 114 )then doSearch:=True else PrintLn(['Key : ',Key]);
+    end;
+    if( doSearch )then PrintLn([' Col:',FSelctedColl,' Row:',FSelectedRow]);
+//FTable.Options:=[goFixedVertLine, goFixedHorzLine, goVertLine, goHorzLine, goRowSelect, goColSizing];
+end;
+//-----------------------------------------------------------------------------+
+procedure   TCBaseTable.FOnSelectCell(Sender: TObject; ACol, ARow: Integer; var CanSelect: Boolean);
+begin
+    FSelctedColl:=ACol;
+    FSelectedRow:=ARow;
 end;
 //-----------------------------------------------------------------------------+
 procedure   TCBaseTable.FOnMouseUp(Sender: TObject; Button: TMouseButton; Shift: TShiftState; X, Y: Integer);

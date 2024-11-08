@@ -30,6 +30,8 @@ type TCBaseTable = class
         FCanSort    : Boolean;
         FSortPos    : Integer;
         FSortDir    : Integer;
+        //--- searching
+        FCanSearch  : Boolean;
         //---
         SelectedRow : Integer;
         FSelectable : Boolean;
@@ -39,8 +41,9 @@ type TCBaseTable = class
         FDblClick   : TTableMouseEvent;
         //---
         FPanel      : TPanel;
-
+        FEdit       : TEdit;
         //---
+        procedure   SetSearch(canSearch:Boolean);
         procedure   SetSortable(sort:Boolean);
         function    IsCollumnSortable(AColl:Integer):Boolean;
         procedure   SetScroll(ScrollStyle:TScrollStyle);
@@ -103,6 +106,7 @@ type TCBaseTable = class
         property    ScrollBarType : TScrollStyle read FScrollStyle write SetScroll default ssNone;
         property    Selectable : Boolean read FSelectable write SetSelectable default False;
         property    CanSort : Boolean read FCanSort write SetSortable default True;
+        property    CanSearch : Boolean read FCanSearch write SetSearch default True;
         property    DateFormat : ShortString read FDateFormat write FDateFormat;
         property    TimeFormat : ShortString read FTimeFormat write FTimeFormat;
 end;
@@ -124,6 +128,7 @@ begin
     FColMinWidth:=40;
     //---
     FCanSort    := True;
+    FCanSearch  := True;
     FSortPos    :=0;
     FSortDir    :=0;
     //---
@@ -173,9 +178,6 @@ begin
     FTable.OnKeyDown:=FOnKeyDown;
     FTable.OnSelectCell:=FOnSelectCell;
     //---
-
-
-
 end;
 //-----------------------------------------------------------------------------+
 procedure   TCBaseTable.RowAdd(DelimitedText:string;Delimiter:AnsiChar);
@@ -385,7 +387,7 @@ begin
 end;
 //-----------------------------------------------------------------------------+
 procedure   TCBaseTable.FOnKeyDown(Sender: TObject; var Key: Word; Shift: TShiftState);
-var doSearch:Boolean;
+var doSearch:Boolean;sText,sVal:string;
 begin
     doSearch:=False;
     if(ssCtrl in Shift )then begin
@@ -393,8 +395,12 @@ begin
     end else begin
         if( Key = 114 )then doSearch:=True else PrintLn(['Key : ',Key]);
     end;
-    if( doSearch )then PrintLn([' Col:',FSelctedColl,' Row:',FSelectedRow]);
-//FTable.Options:=[goFixedVertLine, goFixedHorzLine, goVertLine, goHorzLine, goRowSelect, goColSizing];
+    if( FCanSearch )and( doSearch )then begin
+        sText:='Search In "'+FAHeaders[FSelctedColl].name+'"';
+        if( InputQuery(sText,'Please Enter Value : ',sVal) )then begin
+            PrintLn(['Do Search In : ',sText,'  Find Value : ',sVal]);
+        end;
+    end;
 end;
 //-----------------------------------------------------------------------------+
 procedure   TCBaseTable.FOnSelectCell(Sender: TObject; ACol, ARow: Integer; var CanSelect: Boolean);
@@ -423,6 +429,7 @@ begin
     //---
     if( FARow = 0 )then begin
         if( Button = mbLeft )then begin
+            FSelctedColl:=FACol;
             if( FCanSort )and( IsCollumnSortable(FACol) )then begin
                 if( FSortPos <> FACol )then begin
                     FSortDir:=1;
@@ -770,6 +777,8 @@ procedure   TCBaseTable.SetScroll(ScrollStyle:TScrollStyle);begin FTable.ScrollB
 procedure   TCBaseTable.SetSelectable(SetSelectable:Boolean);begin FSelectable:=SetSelectable;end;
 //-----------------------------------------------------------------------------+
 procedure   TCBaseTable.SetSortable(sort:Boolean);begin FCanSort:=sort; end;
+//-----------------------------------------------------------------------------+
+procedure   TCBaseTable.SetSearch(canSearch:Boolean);begin FCanSearch:=canSearch;end;
 //-----------------------------------------------------------------------------+
 function    TCBaseTable.RowsCount:Word;begin Result:=FTable.RowCount-1; end;
 //-----------------------------------------------------------------------------+

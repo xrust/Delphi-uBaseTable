@@ -163,7 +163,8 @@ begin
     //---
 end;
 //-----------------------------------------------------------------------------+
-procedure   TCBaseTable.RowAdd(DelimitedText:string;Delimiter:AnsiChar);var i:Integer; row:TStringList;
+procedure   TCBaseTable.RowAdd(DelimitedText:string;Delimiter:AnsiChar);
+var i:Integer; row:TStringList;
 begin
     if( FTable.RowCount < FLastRow + 2 )then FTable.RowCount:=FLastRow + 2;
     try
@@ -187,7 +188,8 @@ begin
     inc(FLastRow);
 end;
 //-----------------------------------------------------------------------------+
-procedure   TCBaseTable.RowInsert(ARow:Word;DelimitedText:string;Delimiter:AnsiChar);var row:TStringList;
+procedure   TCBaseTable.RowInsert(ARow:Word;DelimitedText:string;Delimiter:AnsiChar);
+var i:Integer; row:TStringList;
 begin
     if( FTable.RowCount < ARow + 2 )then FTable.RowCount:=ARow + 2;
     //---

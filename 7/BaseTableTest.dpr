@@ -4,7 +4,8 @@ uses
   Forms,
   Unit1 in 'Unit1.pas' {Form1},
   uLogger in 'Include\uLogger.pas',
-  uBaseTable in 'Include\uBaseTable.pas';
+  uBaseTable in 'Include\uBaseTable.pas',
+  uCommonTable in 'Include\uCommonTable.pas';
 
 {$R *.res}
 

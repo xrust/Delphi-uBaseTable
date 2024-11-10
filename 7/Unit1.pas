@@ -4,7 +4,7 @@ interface
 
 uses
   Windows, Messages, SysUtils, Variants, Classes, Graphics, Controls, Forms,
-  Dialogs, Grids, StdCtrls, uLogger, uBaseTable;
+  Dialogs, Grids, StdCtrls, uLogger, uBaseTable, uCommonTable;
 
 type
   TForm1 = class(TForm)
@@ -22,7 +22,7 @@ type
   end;
 
 var Form1: TForm1;
-    Table : TCBaseTable;
+    Table : TCCommonTable;
 
 implementation
 
@@ -30,16 +30,16 @@ implementation
 
 procedure TForm1.FormCreate(Sender: TObject);
 begin
-    Table := TCBaseTable.Create(@StringGrid1,5,50);
+    Table := TCCommonTable.Create(@StringGrid1,5,50);
     Table.ScrollBarType:=ssVertical;
     Table.OnClick:=OnTableClick;
     Table.OnDblClick:=OnTableDblClick;
 
-    Table.AddColHeader('DateTime',tcDateTime);
-    Table.AddColHeader('Open',tcDbl);
-    Table.AddColHeader('High',tcDbl);
-    Table.AddColHeader('Low',tcDbl);
-    Table.AddColHeader('Close',tcDbl);
+    Table.SetColHeader('DateTime',tcDateTime);
+    Table.SetColHeader('Open',tcDbl);
+    Table.SetColHeader('High',tcDbl);
+    Table.SetColHeader('Low',tcDbl);
+    Table.SetColHeader('Close',tcDbl);
 end;
 
 procedure TForm1.FormActivate(Sender: TObject);

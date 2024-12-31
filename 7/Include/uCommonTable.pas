@@ -2,6 +2,8 @@ unit uCommonTable;
 {//----------------------------------------------------------------------------+
     Extended Common Table class Based on Base Table. Can Sort and Search
     v1.3 add columns auto width by content length
+    v1.4 add editing cell with TEdit
+    v1.5 add filtering be column and mpve autowith insert class
 }//----------------------------------------------------------------------------+
 interface
 //-----------------------------------------------------------------------------+
@@ -42,6 +44,12 @@ type TCCommonTable = class
         FLSearchPos : Integer;
         FLSelColl   : Integer;
         FScrollStyle: TScrollStyle;
+        //--- editing
+        FCanEdit    : Boolean;
+        FReadOnly   : Boolean;
+        FEdit       : TEdit;
+        FEditxPos   : Integer;
+        FEdityPos   : Integer;
         //---
         FClick      : TTableMouseEvent;
         FDblClick   : TTableMouseEvent;
@@ -58,6 +66,8 @@ type TCCommonTable = class
         procedure   AutoWithWhenCollWithChanged;
         procedure   Sort(xPos,sort:Integer);
         procedure   FDoSearch(searchDir:Integer);
+        procedure   FHideEdit;
+        procedure   FClearTable;
     protected
         FColMinWidth: Word;
         FRowHeigth  : Word;
@@ -85,9 +95,12 @@ type TCCommonTable = class
         FSelColl    : Integer;
         FSelRow     : Integer;
         //---
-        FTable      : PStringGrid;
+        FTable      : TStringGrid;
+        FCache      : TStringList; // глобальный кеш всей таблицы
+        //--- filtering
+        FFilterCache: TStringList; // кеш фильтрации
+        procedure   FDoFilter(doFilter:Boolean);
         //---
-
         procedure   FOnDrawCell(Sender: TObject; ACol, ARow: Integer; Rect: TRect; State: TGridDrawState);
         procedure   FOnMouseDown(Sender: TObject; Button: TMouseButton; Shift: TShiftState; X, Y: Integer);
         procedure   FOnMouseUp(Sender: TObject; Button: TMouseButton; Shift: TShiftState; X, Y: Integer);
@@ -96,8 +109,12 @@ type TCCommonTable = class
         procedure   FOnDblClick(Sender: TObject);
         procedure   FOnKeyDown(Sender: TObject; var Key: Word; Shift: TShiftState);
         procedure   FOnSelectCell(Sender: TObject; ACol, ARow: Integer; var CanSelect: Boolean);
+        procedure   FOwnerResize(Sender: TObject);
+        //---
+        procedure   FEditOnExit(Sender: TObject);
     public
-        constructor Create(Grid:PStringGrid; ColCount:Word=2; RowCount:Word=5; RowHeight:Word=22);
+        destructor  Free;
+        constructor Create(Grid:TStringGrid; ColCount:Word=2; RowCount:Word=5; RowHeight:Word=22);
         procedure   RebuildTable(ColCount:Word=2; RowCount:Word=5; RowHeight:Word=22);
         procedure   AutoWidth;
         procedure   Clear;
@@ -122,6 +139,8 @@ type TCCommonTable = class
         property    ScrollBarType : TScrollStyle read FScrollStyle write SetScroll default ssNone;
         property    CanSort : Boolean read FCanSort write SetSortable default True;
         property    CanSearch : Boolean read FCanSearch write SetSearch default True;
+        property    CanEdit : Boolean read FCanEdit write FCanEdit default True;
+        property    CellsReadOnly : Boolean read FReadOnly write FReadOnly default True;
         property    ColValAutoWidth : Boolean read FValAutoWith write FValAutoWith default True;
         property    DateFormat : ShortString read FDateFormat write FDateFormat;
         property    TimeFormat : ShortString read FTimeFormat write FTimeFormat;
@@ -131,6 +150,8 @@ implementation
 //-----------------------------------------------------------------------------+
 procedure TCCommonTable.RebuildTable(ColCount, RowCount, RowHeight: Word);var i:Integer;
 begin
+    FHideEdit;
+    //---
     FRowHeigth:=RowHeight;
     FColCount:=ColCount;
     FRowCount:=RowCount;
@@ -154,10 +175,17 @@ begin
     //---
     FTable.ColCount:=FColCount;
     FTable.RowCount:=FRowCount;
-
+    FCache.Clear;
 end;
 //-----------------------------------------------------------------------------+
-constructor TCCommonTable.Create(Grid:PStringGrid; ColCount:Word; RowCount:Word; RowHeight:Word);
+destructor  TCCommonTable.Free;
+begin
+    FCache.Free;
+    FFilterCache.Free;
+    inherited Destroy;
+end;
+//-----------------------------------------------------------------------------+
+constructor TCCommonTable.Create(Grid:TStringGrid; ColCount:Word; RowCount:Word; RowHeight:Word);
 var i:Integer;
 begin
     FRowHeigth:=RowHeight;
@@ -176,6 +204,11 @@ begin
     FValAutoWith:= True;
     FSortPos    :=0;
     FSortDir    :=0;
+    //---
+    FCanEdit    :=True;
+    FReadOnly   :=True;
+    FEditxPos   :=-1;
+    FEdityPos   :=-1;
     //---
     TableColor  :=$FFFFFF;
     OddColor    :=$EEEEEE;//C0C0C0
@@ -227,28 +260,47 @@ begin
     FTable.OnDblClick:=FOnDblClick;
     FTable.OnKeyDown:=FOnKeyDown;
     FTable.OnSelectCell:=FOnSelectCell;
-    //---
+    //--- переносим авторазмер внутрь класса
+    if( FTable.Owner.ClassParent = TForm )then TForm(FTable.Owner).OnResize:=FOwnerResize;
+    if( FTable.Owner.ClassParent = TPanel )then TPanel(FTable.Owner).OnResize:=FOwnerResize;
+    //--- эдит что бы править ячейки
+    FEdit:=TEdit.Create(FTable.Owner);
+    FEdit.Parent:=FTable.Parent;
+    FEdit.Align :=alNone;
+    FEdit.Color:=SelColor;
+    FEdit.AutoSize:=False;
+    FEdit.Ctl3D:=False;
+    FEdit.BorderStyle:=bsSingle;
+    FEdit.ReadOnly:=FReadOnly;
+    FEdit.Visible:=False;
+    FEdit.OnExit:=FEditOnExit;
+    //--- кеш фильтрации
+    FFilterCache:=TStringList.Create;
+    //--- глобальный кеш
+    FCache:=TStringList.Create;
 end;
+//-----------------------------------------------------------------------------+
+procedure   TCCommonTable.FOwnerResize(Sender: TObject);begin AutoWidth;inherited;end;
 //-----------------------------------------------------------------------------+
 procedure   TCCommonTable.RowAdd(DelimitedText:string;Delimiter:AnsiChar);
 var i:Integer; list:TStringList;
 begin
     if( FTable.RowCount <> FLastRow + 2 )then FTable.RowCount:=FLastRow + 2;
     try
-        //---
+        //--- готовим текст удаляем все ненужное для парсинга в строку
         DelimitedText:=StringReplace(DelimitedText,#13,'',[rfReplaceAll, rfIgnoreCase]);
         DelimitedText:=StringReplace(DelimitedText,#10,'_',[rfReplaceAll, rfIgnoreCase]);
-        //---
+        //--- преобразовали залили в лист
         list:=TStringList.Create;
         list.Delimiter:=Delimiter;
         list.DelimitedText:=DelimitedText;
         list.Text:=StringReplace(list.Text,'_',' ',[rfReplaceAll, rfIgnoreCase]);
-        //---
+        //--- записываем макс размер текста для автоширины по контенту
         for i:=0 to Length(FAHeaders)-1 do begin
             if( i > list.Count -1 )then Continue;
             if( FAHeaders[i].maxTxtLen < Length(list[i])+2 )then FAHeaders[i].maxTxtLen := Length(list[i])+2;
         end;
-        //---
+        //--- заливаем в таблицу, если полей больше, заливаем по одному
         if( list.Count > FTable.ColCount )then
             for i:=0 to FTable.ColCount do FTable.Cells[i,FLastRow+1]:=Trim(list[i])
             else FTable.Rows[FLastRow+1].AddStrings(list);
@@ -307,7 +359,20 @@ end;
 //-----------------------------------------------------------------------------+
 procedure TCCommonTable.Clear;var i:Integer;
 begin
+    FHideEdit;
+    //---
     for i:=0 to FTable.RowCount-1 do FTable.Rows[i].Clear;
+    //---
+    FTable.RowCount:=2;
+    FTable.Rows[1].Clear;
+    FLastRow:=0;
+end;
+//-----------------------------------------------------------------------------+
+procedure TCCommonTable.FClearTable;var i:Integer;
+begin
+    FHideEdit;
+    //---
+    for i:=1 to FTable.RowCount-1 do FTable.Rows[i].Clear;
     //---
     FTable.RowCount:=2;
     FTable.Rows[1].Clear;
@@ -393,6 +458,8 @@ procedure 	TCCommonTable.AutoWidth;
 var
 i,bdWidth,statWidth,dinWith,maxWidth,minWidth,scrlWidth,tabWidth,minIndex,realLen:Integer;
 begin
+    FHideEdit;
+    //---
     statWidth:=0; // общая ширина всех статических столбцов
     dinWith:=0; // ширина нестатичных колонок = ширина таблицы - ширина статичных
     maxWidth:=0; // длинна текста во всех колонках кроме тех где ширина статична
@@ -467,6 +534,18 @@ begin
     end;
 end;
 //-----------------------------------------------------------------------------+
+procedure   ShowHelp;var msg:string;
+begin
+    msg :=  'F1 : Help'+#13#10+
+            'Ctrl+F : SearchMenu'+#13#10+
+            'F3 : Search Up'+#13#10+
+            'Shift F3 : Search Down'+#13#10+
+            'Ctrl+Shift+F : Filtration Menu'+#13#10+
+            'Ctrl+Shift+B : Exit Filtration'+#13#10
+            ;
+    ShowMessage(msg);
+end;
+//-----------------------------------------------------------------------------+
 procedure   TCCommonTable.FOnKeyDown(Sender: TObject; var Key: Word; Shift: TShiftState);
 var
 doSearch:Boolean;
@@ -474,7 +553,22 @@ searchDir:Integer;
 begin
     doSearch:=False;
     searchDir:=0;
-    //-- Ctrl+F
+    //--- F1
+    if( Key = 112 )then begin
+        ShowHelp;
+        Exit;
+    end;
+    //--- Shift+Ctrl+F:70
+    if(ssCtrl in Shift )and(ssShift in Shift )and( Key = 70 )then begin
+        FDoFilter(True);
+        Exit;
+    end;
+    //--- Shift+Ctrl+B:66
+    if(ssCtrl in Shift )and(ssShift in Shift )and( Key = 66 )then begin
+        FDoFilter(False);
+        Exit;
+    end;
+    //--- Ctrl+F
     if(ssCtrl in Shift )and( Key = 70 )then doSearch:=True;
     //--- F3
     if( Key = 114 )then begin
@@ -483,6 +577,74 @@ begin
     end;
     //---
     if( FCanSearch )and( doSearch )then FDoSearch(searchDir);
+end;
+//-----------------------------------------------------------------------------+
+procedure   TCCommonTable.FDoFilter(doFilter:Boolean);
+var i,lp,rp,tLen:Integer;
+sLabel,sText,colTxt,rowTxt:string;
+list:TStringList;
+begin
+    FHideEdit;
+    //---
+    if( doFilter )then begin
+        sLabel:='Do Filtering By Column "'+FAHeaders[FSelColl].name+'"';
+        if( InputQuery(sLabel,'Please Enter Desired Value Below : ',sText) )then begin
+            //--- ищем левую звезду, если она не в начале , то ее нет
+            lp:=Pos('*',sText);
+            if( lp>1 )then lp:=0;
+            //--- ищем правую звезду, если она не в конце, то ее нет
+            rp:=LastDelimiter('*',sText);
+            if( rp < Length(sText) )then rp:=0;
+            //--- удаляем звезды из строки поиска
+            sText:=StringReplace(sText,'*','',[rfReplaceAll, rfIgnoreCase]);
+            tLen:=Length(sText);
+            //--- ищем совпадения
+            FTable.Enabled:=False;// блокируем таблицу что бы не моргала
+            list:=TStringList.Create;
+            //--- если глобальный кеш пустой (первая фильтрация) то зfливаем в него таблицу (будем использовать его для восстановления таблицы)
+            if( FCache.Count < 1 )then for i:=1 to FTable.RowCount-1 do FCache.Add(FTable.Rows[i].CommaText);
+            //---
+            for i:=1 to FTable.RowCount-1 do begin
+                rowTxt:=FTable.Rows[i].CommaText;
+                FFilterCache.Add(rowTxt);
+                //---
+                colTxt:=FTable.Cells[FSelColl,i];
+                if( lp=0 )and( rp=0 )then begin
+                    if( sText = colTxt )then list.Add(rowTxt);
+                end else if( lp>0 )and( rp=0 )then begin
+                    Delete(colTxt,1,Pos(sText,colTxt)-1);
+                    if( sText = colTxt )then list.Add(rowTxt);
+                end else if( lp=0 )and( rp>0 )then begin
+                    Delete(colTxt,Pos(sText,colTxt)+tLen,256);
+                    if( sText = colTxt )then list.Add(rowTxt);
+                end else if( lp>0 )and( rp>0 )then begin
+                    if( Pos(sText,colTxt) > 0 )then list.Add(rowTxt);
+                end;
+            end;
+            FClearTable;
+            for i:=0 to list.Count-1 do RowAdd(list[i]);
+            //PrintLn(['Table Filtered By "',sText,'" In ',FAHeaders[FSelColl].name,' Column. Found :',list.Count,' Records.']);
+            list.Free;
+            //--- активируем таблицу назад и ставим на ней фокус
+            FTable.Enabled:=True;
+            FTable.SetFocus;
+        end else begin
+            FFilterCache.Clear;
+            FCache.Clear
+        end;
+    end else begin
+        //--- восстанавливаем таблицу из глобального кеша
+        if( FCache.Count > 0 )then begin
+            FTable.Enabled:=False;
+            for i:=0 to FCache.Count-1 do RowAdd(FCache[i]);
+            //PrintLn(['Returned ',FCache.Count,' Records.']);
+            FTable.Enabled:=True;
+            FTable.SetFocus;
+        end;
+        FFilterCache.Clear;// чистим кеш предыдущих фильтров
+        FCache.Clear;// чистим глобальный кеш до стледующего фильтра
+    end;
+    AutoWidth;//  пересчитываем ширину
 end;
 //-----------------------------------------------------------------------------+
 procedure   TCCommonTable.FDoSearch(searchDir:Integer);
@@ -501,7 +663,7 @@ begin
     end;
     //---
     if( searchDir = 0 )then begin
-        sLabel:=' To Search In "'+FAHeaders[FSelColl].name+'"';
+        sLabel:=' Do Search In "'+FAHeaders[FSelColl].name+'"';
         sText:=FLSearchText;
         if( InputQuery(sLabel,'Please Enter Desired Value Below : ',sText) )then begin
             if( StringReplace((sText),' ','',[rfReplaceAll, rfIgnoreCase]) = '' )then begin
@@ -627,9 +789,40 @@ begin
 end;
 //-----------------------------------------------------------------------------+
 procedure   TCCommonTable.FOnDblClick(Sender: TObject);
+var
+rect:TRect;
+text:ShortString;
 begin
     if( FARow = 0 )then Exit;
+    //---
+    if( FCanEdit )then begin
+        if( not FReadOnly )then FEdit.Color:=TableColor;
+        Rect := Ftable.CellRect(FACol,FARow);
+        //---
+        FEdit.Top:=Ftable.Top + rect.Top;
+        FEdit.Height:=rect.Bottom-rect.Top+2;
+        FEdit.Left:=Ftable.Left+rect.Left;
+        FEdit.Width:=(rect.Right-rect.Left)+2;
+        FEditxPos:=FACol;
+        FEdityPos:=FARow;
+        FEdit.Text:=Ftable.Cells[FACol,FARow];
+        FEdit.Visible:=True;
+        FEdit.SetFocus;
+    end;
+    //---
     if( Assigned(FDblClick) )then FDblClick(FACol,FARow-1,False);
+end;
+//-----------------------------------------------------------------------------+
+procedure TCCommonTable.FHideEdit;
+begin
+    FEdit.Visible:=False;
+    FEdit.Text:='';
+end;
+//-----------------------------------------------------------------------------+
+procedure TCCommonTable.FEditOnExit(Sender: TObject);
+begin
+    Ftable.Cells[FEditxPos,FEdityPos]:=FEdit.Text;                                                                                               
+    FHideEdit;
 end;
 //-----------------------------------------------------------------------------+
 procedure   TCCommonTable.FOnDrawCell(Sender: TObject; ACol, ARow: Integer; Rect: TRect; State: TGridDrawState);
@@ -651,7 +844,7 @@ procedure   TCCommonTable.DrawCell(ACol, ARow: Integer; Rect: TRect);
 var
 HM,VM:Integer;
 begin
-    HM:=5; VM:=Trunc( (FTable.DefaultRowHeight-Abs(FTable.Font.Height)) / 2 );                      
+    HM:=5; VM:=Trunc( (FTable.DefaultRowHeight-Abs(FTable.Font.Height)) / 2 );
     with FTable.Canvas do begin
         //---черезстрочная подсветка;
         if( ARow > 0 )then begin
@@ -928,7 +1121,7 @@ begin
     FTable.Enabled:=False;
     dType:=0;
     //---
-    for i:=1 to sz do begin                                                                         
+    for i:=1 to sz do begin
         dataArr[i-1].strRow:=FTable.Rows[i].CommaText;
         case FAHeaders[xPos].ctype of
             tcInt,tcUint : dataArr[i-1].intVal:=StrToInt64Def(FTable.Cells[xpos,i],0);
@@ -956,6 +1149,5 @@ procedure   TCCommonTable.SetSearch(canSearch:Boolean);begin FCanSearch:=canSear
 //-----------------------------------------------------------------------------+
 function    TCCommonTable.RowsCount:Word;begin Result:=FTable.RowCount-1; end;
 //-----------------------------------------------------------------------------+
-
 
 end.
